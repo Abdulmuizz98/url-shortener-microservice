@@ -2,6 +2,7 @@ require("dotenv").config();
 // require("./connection.js");
 const express = require("express");
 const cors = require("cors");
+const validator = require("validator");
 const bodyParser = require("body-parser");
 const app = express();
 
@@ -25,6 +26,10 @@ app.get("/api/hello", function (req, res) {
   res.json({ greeting: "hello API" });
 });
 
+const validUrl = (req, res, next) => {
+  if (!validator.isURL(req.body.url)) res.json({ error: "invalid url" });
+  next();
+};
 const ensureUniqueUrl = async (req, res, next) => {
   const cond = { url: req.body.url };
   try {
@@ -37,7 +42,7 @@ const ensureUniqueUrl = async (req, res, next) => {
 };
 
 // POST [project_url]/api/shorturl
-app.post("/api/shorturl", ensureUniqueUrl, async (req, res) => {
+app.post("/api/shorturl", validUrl, ensureUniqueUrl, async (req, res) => {
   let uid,
     url = req.body.url;
   const isInit = await urlCount.init();
@@ -62,8 +67,8 @@ app.get("/api/shorturl/:uid", async (req, res) => {
   const cond = { uid: req.params.uid };
   try {
     const doc = await findOneDoc(Url, cond, (data) => data);
-    if (doc) res.json({ original_url: doc.url, short_url: doc.uid });
-    else res.json({ error: "not found" });
+    if (!doc) res.json({ error: "not found" });
+    res.redirect(doc.url);
   } catch (err) {
     res.json({ error: err.message });
   }
